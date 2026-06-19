@@ -16,6 +16,26 @@ import Link from 'next/link';
 import ProtectedPage from '@/components/auth/ProtectedPage';
 import { useAuth } from '@/context/AuthContext';
 
+const BILL_STORAGE_KEY = 'akbTradersCurrentBill';
+
+function readBill(): Record<string, unknown> {
+  try {
+    const raw = localStorage.getItem(BILL_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+    return {};
+  } catch {
+    localStorage.removeItem(BILL_STORAGE_KEY);
+    return {};
+  }
+}
+
+function writeBill(data: Record<string, unknown>): void {
+  localStorage.setItem(BILL_STORAGE_KEY, JSON.stringify(data));
+}
 
 function CustomerInfoContent() {
   const [customerName, setCustomerName] = useState('');
@@ -27,16 +47,12 @@ function CustomerInfoContent() {
 
   useEffect(() => {
     setIsMounted(true);
-    const savedBill = localStorage.getItem('akbTradersCurrentBill');
-    if (savedBill) {
-        try {
-            const bill = JSON.parse(savedBill);
-            if (bill.customerName) setCustomerName(bill.customerName);
-            if (bill.date) setDate(new Date(bill.date));
-        } catch (error) {
-            console.error("Failed to parse current bill from localStorage", error);
-            localStorage.removeItem('akbTradersCurrentBill');
-        }
+    const bill = readBill();
+    if (typeof bill.customerName === 'string' && bill.customerName) {
+      setCustomerName(bill.customerName);
+    }
+    if (typeof bill.date === 'string' && bill.date) {
+      setDate(new Date(bill.date));
     }
   }, []);
 
@@ -50,16 +66,15 @@ function CustomerInfoContent() {
         return;
     }
 
-    const savedBill = localStorage.getItem('akbTradersCurrentBill');
-    const currentBill = savedBill ? JSON.parse(savedBill) : {};
-    
+    const currentBill = readBill();
+
     const updatedBill = {
         ...currentBill,
         customerName,
         date: (date || new Date()).toISOString(),
     };
 
-    localStorage.setItem('akbTradersCurrentBill', JSON.stringify(updatedBill));
+    writeBill(updatedBill);
     router.push('/inventory');
   };
   
